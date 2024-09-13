@@ -1,6 +1,8 @@
 const userModel = require("../model/userSchema.js");
 const emailValidator = require("email-validator");
-const signup = async (req, res, next) => {
+const bcrypt = require("bcrypt");
+// Sign up a user
+const signUp = async (req, res, next) => {
   const { name, email, password, confirmPassword } = req.body;
   //   console.log(name, email, password, confirmPassword);
   if (!email || !name || !password) {
@@ -25,11 +27,11 @@ const signup = async (req, res, next) => {
   try {
     // await userModel.create(req.body); //alternative
     const userInfo = userModel(req.body);
-    const result = await userInfo.save(); // not necessary if you use line 5
+    const result = await userInfo.save(); 
     return res.status(200).json({
       success: true,
       message: "User registered successfully",
-        user: result,
+      user: result,
     });
   } catch (error) {
     if (error.code === 11000) {
@@ -45,7 +47,7 @@ const signup = async (req, res, next) => {
   }
 };
 
-const signin = async (req, res) => {
+const signIn = async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({
@@ -56,7 +58,7 @@ const signin = async (req, res) => {
   //   const user = await userModel.findOne({ email: email }).select("+password");
   try {
     const user = await userModel.findOne({ email: email }).select("+password");
-    if (!user || user.password !== password) {
+    if (!user || !(bcrypt.compare(password, user.password))) {
       return res.status(401).json({
         message: "Invalid email or password",
         success: false,
@@ -82,4 +84,40 @@ const signin = async (req, res) => {
   }
 };
 
-module.exports = { signup, signin };
+const getUser = async (req, res, next) => {
+  const userId = req.user.id;
+
+  try {
+    const user = await userModel.findById(userId);
+    return res.status(200).json({
+      success: true,
+      data: user,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const logOut = (req, res) => {
+  try {
+    const cookieOption = {
+      expires: new Date(),
+      httpOnly: true,
+    };
+    res.cookie("token", null, cookieOption);
+    res.status(200).json({
+      success: true,
+      message: "log out successful",
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+module.exports = { signUp, signIn, getUser, logOut };
